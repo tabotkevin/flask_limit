@@ -1,0 +1,26 @@
+.DS_Store
+.env
+.flaskenv
+*.pyc
+*.sqlite
+*.pyo
+venv/
+venv*
+.vscode/
+.vscode*
+migrations/
+migrations*
+*.egg
+*.egg-info/
+_mailinglist
+.tox/
+.cache/
+.pytest_cache/
+.idea/
+docs/_build/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+*,cover
