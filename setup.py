@@ -1,5 +1,5 @@
 """
-Flask_Limiter
+Flask_Limit
 --------------
 
 An extension that provides rate limiting for Flask routes.
@@ -14,7 +14,7 @@ with open('flask_limiter/__init__.py', 'r') as f:
 setup(
     name='Flask_Limit',
     version=version,
-    url='https://github.com/tabotkevin/flask_limiter',
+    url='https://github.com/tabotkevin/flask_limit',
     license='MIT',
     author='Tabot Kevin',
     author_email='tabot.kevin@gmail.com',
