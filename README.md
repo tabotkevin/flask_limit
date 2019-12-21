@@ -106,7 +106,7 @@ if __name__ == '__main__':
 Proof
 ----------------------------
 
-![proof](img/proof.png)
+![proof](proof/proof.png)
 
 
 Credit
