@@ -107,7 +107,8 @@ if __name__ == '__main__':
 
 Proof
 ----------------------------
-![proff](https://pasteboard.co/IMbJIHx.png)
+
+[![Proof](https://pasteboard.co/IMbJIHx.png)](https://pasteboard.co/IMbJIHx.png)
 
 
 Credit
