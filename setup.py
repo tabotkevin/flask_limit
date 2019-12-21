@@ -7,7 +7,7 @@ An extension that provides rate limiting for Flask routes.
 import re
 from setuptools import setup
 
-with open('flask_limiter/__init__.py', 'r') as f:
+with open('flask_limit/__init__.py', 'r') as f:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         f.read(), re.MULTILINE).group(1)
 
