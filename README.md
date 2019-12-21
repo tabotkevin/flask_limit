@@ -1,8 +1,6 @@
 Flask_Limit
 ==============
 
-[![Build Status](https://travis-ci.org/tabotkevin/Flask_Limit.png?branch=master)](https://travis-ci.org/tabotkevin/Flask-Limit)
-
 An extension that provides rate limiting for Flask routes.
 
 Installation
@@ -108,7 +106,7 @@ if __name__ == '__main__':
 Proof
 ----------------------------
 
-[![Proof](https://pasteboard.co/IMbJIHx.png)](https://pasteboard.co/IMbJIHx.png)
+![proof](img/proof.png)
 
 
 Credit
