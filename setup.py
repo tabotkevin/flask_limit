@@ -11,6 +11,9 @@ with open('flask_limit/__init__.py', 'r') as f:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         f.read(), re.MULTILINE).group(1)
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='Flask_Limit',
     version=version,
@@ -18,7 +21,9 @@ setup(
     license='MIT',
     author='Tabot Kevin',
     author_email='tabot.kevin@gmail.com',
-    description='Basic request rate limiting extension for Flask routes.',
+    description='An extension that provides rate limiting for Flask routes.',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     packages=['flask_limit'],
     zip_safe=False,
     include_package_data=True,
