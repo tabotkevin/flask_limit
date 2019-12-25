@@ -5,10 +5,9 @@ An extension that provides rate limiting for Flask routes.
 
 Installation
 ------------
-The easiest way to install this is through pip.
-```
+The easiest way to install this is through pip::
 pip install Flask_Limit
-```
+
 
 Configuration
 ----------------------------
@@ -26,7 +25,8 @@ If this parameters are not provided, the values are gotten from the application'
 In the example below, after rate limiting the **before_request** method, a get request to **/greet/<name>**
 will show from the response headers that the rate limiting is working.
 
-```python
+.. code:: python
+
 from flask import Flask, g
 from flask_limit import RateLimiter
 
@@ -57,14 +57,14 @@ def greet(name):
 
 if __name__ == '__main__':
     app.run()
-```
 
 
 Complex example
 -----------------------------
 More than one route can be rate limited.
 
-```python
+.. code:: python
+
 from flask import Flask, g
 from flask_limit import RateLimiter
 
@@ -100,13 +100,13 @@ def get_auth_token():
 
 if __name__ == '__main__':
     app.run()
-```
 
 
 Proof
 ----------------------------
 
-![proof](https://ibb.co/k4yM2D4)
+.. image:: https://ibb.co/k4yM2D4
+
 
 
 Credit
