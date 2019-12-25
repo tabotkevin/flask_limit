@@ -106,7 +106,7 @@ if __name__ == '__main__':
 Proof
 ----------------------------
 
-![proof](https://ibb.co/k4yM2D4)
+![proof](proof.png)
 
 
 Credit
