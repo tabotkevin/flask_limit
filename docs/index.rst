@@ -105,7 +105,7 @@ More than one route can be rate limited::
 Proof
 ----------------------------
 
-.. figure:: https://ibb.co/k4yM2D4
+.. literalinclude:: https://ibb.co/k4yM2D4
 
 
 Credit
