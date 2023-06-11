@@ -1,5 +1,5 @@
 import logging
-import functools
+from functools import wraps
 from time import time
 from flask import current_app, request, g, jsonify
 
@@ -72,7 +72,7 @@ class RateLimiter(object):
         limit = limit if limit else current_app.config['RATELIMITE_LIMIT']
         period = period if period else current_app.config['RATELIMIT_PERIOD']
 
-        functools.wraps(f)
+        @wraps(f)
         def wrapped(*args, **kwargs):
             # initialize the rate limiter the first time here
             global _limiter
