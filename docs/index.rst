@@ -167,4 +167,6 @@ Tests
 Proof
 ----------------------------
 
-.. image:: proof.png
+.. raw:: html
+    <img src="proof.png">
+
