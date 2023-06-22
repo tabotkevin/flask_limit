@@ -1,5 +1,7 @@
 # Flask_Limit
 
+[![Build status](https://github.com/tabotkevin/flask_limit/actions/workflows/tests.yml/badge.svg)](https://github.com/tabotkevin/flask_limit/actions)
+
 An extension that provides rate limiting for Flask routes.
 
 ## Installation

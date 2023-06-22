@@ -6,6 +6,11 @@
 Welcome to Flask-Limit's documentation!
 ==========================================
 
+.. raw:: html
+   <a href="https://github.com/tabotkevin/flask_limit/actions">
+    <img src="https://github.com/tabotkevin/flask_limit/actions/workflows/tests.yml/badge.svg">
+   </a>
+
 **Flask-Limit** is an extension that provides rate limiting for Flask routes.
 
 
