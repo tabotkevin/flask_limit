@@ -1,0 +1,2 @@
+class LimiterException(Exception):
+    pass

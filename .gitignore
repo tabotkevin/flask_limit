@@ -18,9 +18,12 @@ _mailinglist
 .pytest_cache/
 .idea/
 docs/_build/
+__pycache__
+__pycache__/
 
 # Coverage reports
 htmlcov/
 .coverage
 .coverage.*
 *,cover
+coverage.*

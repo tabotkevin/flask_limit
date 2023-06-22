@@ -30,14 +30,19 @@ The easiest way to rate limit the entire application is limit the application's 
 The **rate_limit** decorator can be called with or without the **litmit** and **period** paramters.
 If this parameters are not provided, the values are gotten from the application's configuration.
 In the example below, after rate limiting the **before_request** method, a get request to **/greet/<name>**
-will show from the response headers that the rate limiting is working.::
+will show from the response headers that the rate limiting is working.
+
+
+In-Memory example
+-----------------------------
+This example uses `MemRateLimit` which is the default Rate-Limiter.::
 
    from flask import Flask, g
    from flask_limit import RateLimiter
 
    class Config:
-      RATELIMITE_LIMIT = 10
-      RATELIMIT_PERIOD = 30
+      RATELIMITE_LIMIT = 10  # Number of allowed requests.
+      RATELIMIT_PERIOD = 30  # Period in seconds.
 
    app = Flask(__name__)
    app.config.from_object(Config)
@@ -61,7 +66,48 @@ will show from the response headers that the rate limiting is working.::
 
    if __name__ == '__main__':
        app.run()
-    
+
+
+Redis example
+-----------------------------
+This example uses `RedisRateLimit` as the Rate-Limiter.
+Remember to set the `REDIS_URL` parameter in your configuration.::
+
+   from flask import Flask, g
+   from flask_limit import RateLimiter
+
+  class Config:
+      RATELIMIT_LIMIT = 10
+      RATELIMIT_PERIOD = 30
+      REDIS_URL = "redis://localhost:6379/0"
+
+
+  app = Flask(__name__)
+  app.config.from_object(Config)
+  limiter = RateLimiter(app, limiter="redis")
+
+
+  @app.before_request
+  @limiter.rate_limit
+  def before_request():
+      pass
+
+
+  @app.after_request
+  def after_request(rv):
+      headers = getattr(g, "headers", {})
+      rv.headers.extend(headers)
+      return rv
+
+
+  @app.route("/greet/<name>")
+  def greet(name):
+      return f"Hello {name}!"
+
+
+  if __name__ == "__main__":
+      app.run()
+
 
 Complex example
 -----------------------------
@@ -102,13 +148,18 @@ More than one route can be rate limited::
        app.run()
 
 
+
+Tests
+----------------------------
+::
+
+  python -m pip install --upgrade pip
+  pip install tox tox-gh-actions
+
+  tox
+
+
 Proof
 ----------------------------
 
-.. image:: ../proof.png
-
-
-Credit
-----------------------------
-
-Credit to **Miguel Grinberg** for his exception work on rate limiting, from which this extension is based on.
+.. image:: proof.png

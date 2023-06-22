@@ -1,3 +1,1 @@
-from .rate_limit import RateLimiter
-
-__version__ = '1.0.5'
+from .rate_limit import RateLimiter  # noqa: F401
