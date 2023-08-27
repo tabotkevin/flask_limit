@@ -167,5 +167,5 @@ Tests
 Proof
 ----------------------------
 
-.. image:: _static/proof.png
+.. image:: https://raw.githubusercontent.com/tabotkevin/flask_limit/master/proof.png
 
