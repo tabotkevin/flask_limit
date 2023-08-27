@@ -163,9 +163,3 @@ Tests
 
   tox
 
-
-Proof
-----------------------------
-
-.. image:: https://raw.githubusercontent.com/tabotkevin/flask_limit/master/proof.png
-
