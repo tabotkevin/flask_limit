@@ -20,6 +20,7 @@ class RateLimiter(object):
         if limiter not in ["memory", "redis"]:
             raise LimiterException("Limiter value must be 'memory' or 'redis'.")
         self.limiter = limiter
+        self.response = "You have exceeded your request rate"
         if app is not None:
             self.init_app(app)
 
@@ -77,13 +78,26 @@ class RateLimiter(object):
             # if the client went over the limit respond with a 429 status
             # code, else invoke the wrapped function
             if not allowed:
-                response = jsonify(
-                    {
-                        "status": 429,
-                        "error": "too many requests",
-                        "message": "You have exceeded your request rate",
-                    }
-                )
+                # Handle custom response when rate limit is exceeded (429):
+                # - If it's a function (callable): Call the function and return its result.
+                # - If it's a dictionary (dict): Directly convert it to JSON.
+                # - Otherwise: Wrap the message into a standard error JSON response.
+
+                if callable(self.response):
+                    res = self.response()
+                    return res if isinstance(res, tuple) else (res, 429)
+
+                if isinstance(self.response, dict):
+                    response = jsonify(self.response)
+                else:
+                    response = jsonify(
+                        {
+                            "status": 429,
+                            "error": "too many requests",
+                            "message": self.response,
+                        }
+                    )
+
                 response.status_code = 429
                 return response
 
