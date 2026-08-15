@@ -5,6 +5,7 @@ from flask import current_app, request, g, jsonify
 from flask_redis import FlaskRedis
 
 from .limiters import MemRateLimit, RedisRateLimit, LimiterException
+from .types import RateLimitInfo
 
 logger = logging.getLogger()
 
@@ -20,7 +21,6 @@ class RateLimiter(object):
         if limiter not in ["memory", "redis"]:
             raise LimiterException("Limiter value must be 'memory' or 'redis'.")
         self.limiter = limiter
-        self.response = "You have exceeded your request rate"
         if app is not None:
             self.init_app(app)
 
@@ -40,7 +40,44 @@ class RateLimiter(object):
             app.config.update(**DEFAULT_CONFIG)
         app.app_context().push()
 
-    def rate_limit(self, f=None, limit=None, period=None):
+    @staticmethod
+    def _default_rate_limit_response(
+            info: RateLimitInfo,
+    ):
+        response = jsonify(
+            {
+                "status": 429,
+                "error": "too many requests",
+                "message": (
+                    "You have exceeded your request rate"
+                ),
+            }
+        )
+
+        response.status_code = 429
+
+        return response
+
+    def _rate_limit_response(
+            self,
+            info: RateLimitInfo,
+            response=None,
+    ):
+
+        if response is None:
+            response = current_app.config.get(
+                "RATELIMIT_RESPONSE"
+            )
+
+        if response is None:
+            return self._default_rate_limit_response(info)
+
+        if callable(response):
+            return response(info)
+
+        return response
+
+    def rate_limit(self, f=None, limit=None, period=None, response=None):
         """Limits the rate at which clients can send requests to 'limit' requests
         per 'period' seconds. Once a client goes over the limit all requests are
         answered with a status code 429 Too Many Requests for the remaining of
@@ -67,6 +104,14 @@ class RateLimiter(object):
             key = "{0}/{1}".format(f.__name__, request.remote_addr)
             allowed, remaining, reset = _limiter.is_allowed(key, limit, period)
 
+            rate_limit_info = RateLimitInfo(
+                limit=limit,
+                remaining=remaining,
+                reset=reset,
+                period=period,
+                key=key,
+            )
+
             # set the rate limit headers in g, so that they are picked up
             # by the after_request handler and attached to the response
             g.headers = {
@@ -78,28 +123,7 @@ class RateLimiter(object):
             # if the client went over the limit respond with a 429 status
             # code, else invoke the wrapped function
             if not allowed:
-                # Handle custom response when rate limit is exceeded (429):
-                # - If it's a function (callable): Call the function and return its result.
-                # - If it's a dictionary (dict): Directly convert it to JSON.
-                # - Otherwise: Wrap the message into a standard error JSON response.
-
-                if callable(self.response):
-                    res = self.response()
-                    return res if isinstance(res, tuple) else (res, 429)
-
-                if isinstance(self.response, dict):
-                    response = jsonify(self.response)
-                else:
-                    response = jsonify(
-                        {
-                            "status": 429,
-                            "error": "too many requests",
-                            "message": self.response,
-                        }
-                    )
-
-                response.status_code = 429
-                return response
+                return self._rate_limit_response(rate_limit_info, response)
 
             # else we let the request through
             return f(*args, **kwargs)
