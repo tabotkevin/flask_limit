@@ -2,18 +2,17 @@ import functools
 import logging
 
 from flask import current_app, g, jsonify, request
-from flask_redis import FlaskRedis
 
 from .limiters import LimiterException, MemRateLimiter, RedisRateLimiter
 
 logger = logging.getLogger(__name__)
 
+EXTENSION_KEY = "flask_limit"
 
-# RATELIMIT_LIMIT is the number of allowed requests
-# RATELIMIT_PERIOD is the period in seconds for the number of allowed requests
 DEFAULT_CONFIG = {
     "RATELIMIT_LIMIT": 10,
     "RATELIMIT_PERIOD": 20,
+    "RATELIMIT_REDIS_URL": "redis://localhost:6379/0",
 }
 
 
@@ -24,37 +23,103 @@ class RateLimiter:
             raise LimiterException("Limiter value must be 'memory' or 'redis'.")
 
         self.limiter = limiter
-        self._limiter = None
-        self._redis = None
 
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
 
-        app.config.setdefault(
-            "RATELIMIT_LIMIT",
-            DEFAULT_CONFIG["RATELIMIT_LIMIT"],
-        )
+        self._configure(app)
 
-        app.config.setdefault(
-            "RATELIMIT_PERIOD",
-            DEFAULT_CONFIG["RATELIMIT_PERIOD"],
-        )
+        backend = self._create_backend(app)
 
-        if self.limiter == "redis":
-            app.config.setdefault(
-                "REDIS_URL",
-                "redis://localhost:6379/0",
+        app.extensions[EXTENSION_KEY] = {
+            "extension": self,
+            "backend": backend,
+        }
+
+        app.after_request(self._add_rate_limit_headers)
+
+    def _configure(self, app):
+
+        for key, value in DEFAULT_CONFIG.items():
+            app.config.setdefault(key, value)
+
+        limit = app.config["RATELIMIT_LIMIT"]
+        period = app.config["RATELIMIT_PERIOD"]
+
+        if not isinstance(limit, int):
+            raise LimiterException("RATELIMIT_LIMIT must be an integer.")
+
+        if limit <= 0:
+            raise LimiterException("RATELIMIT_LIMIT must be greater than zero.")
+
+        if not isinstance(period, int):
+            raise LimiterException("RATELIMIT_PERIOD must be an integer.")
+
+        if period <= 0:
+            raise LimiterException("RATELIMIT_PERIOD must be greater than zero.")
+
+    def _get_backend(self):
+        extension = current_app.extensions.get(EXTENSION_KEY)
+
+        if extension is None:
+            raise LimiterException(
+                "flask-limit has not been initialized for this application."
             )
 
-            self._redis = FlaskRedis(app)
-            self._limiter = RedisRateLimiter(self._redis)
+        return extension["backend"]
 
-        else:
-            self._limiter = MemRateLimiter()
+    def _create_backend(self, app):
+        if self.limiter == "memory":
+            return MemRateLimiter()
 
-        app.extensions["rate_limiter"] = self
+        return self._create_redis_backend(app)
+
+    @staticmethod
+    def _create_redis_backend(app):
+        try:
+            import redis
+        except ImportError as exc:
+            raise LimiterException(
+                "Redis support requires the 'redis' package. "
+                "Install it with: pip install redis"
+            ) from exc
+
+        redis_url = app.config["RATELIMIT_REDIS_URL"]
+
+        client = redis.Redis.from_url(
+            redis_url,
+            decode_responses=False,
+        )
+
+        return RedisRateLimiter(client)
+
+    @staticmethod
+    def _validate_limit(limit, period):
+
+        if not isinstance(limit, int):
+            raise LimiterException("Rate limit must be an integer.")
+
+        if limit <= 0:
+            raise LimiterException("Rate limit must be greater than zero.")
+
+        if not isinstance(period, int):
+            raise LimiterException("Rate limit period must be an integer.")
+
+        if period <= 0:
+            raise LimiterException("Rate limit period must be greater than zero.")
+
+    @staticmethod
+    def _add_rate_limit_headers(response):
+
+        headers = getattr(g, "rate_limit_headers", None)
+
+        if headers:
+            for name, value in headers.items():
+                response.headers[name] = value
+
+        return response
 
     def rate_limit(self, f=None, limit=None, period=None):
         """Limit a route to a number(limit) of requests per period.
@@ -62,6 +127,18 @@ class RateLimiter:
         Args:
             limit: Maximum number of requests allowed.
             period: Time window in seconds.
+
+        Usage:
+
+            @limiter.rate_limit
+            def endpoint():
+                ...
+
+        Or:
+
+            @limiter.rate_limit(limit=100, period=60)
+            def endpoint():
+                ...
         """
 
         if f is None:
@@ -71,31 +148,30 @@ class RateLimiter:
                 period=period,
             )
 
-        limit = limit if limit is not None else current_app.config["RATELIMIT_LIMIT"]
+        configured_limit = current_app.config["RATELIMIT_LIMIT"]
+        configured_period = current_app.config["RATELIMIT_PERIOD"]
 
-        period = (
-            period if period is not None else current_app.config["RATELIMIT_PERIOD"]
-        )
+        limit = configured_limit if limit is None else limit
 
-        if limit <= 0:
-            raise LimiterException("Rate limit must be greater than zero.")
+        period = configured_period if period is None else period
 
-        if period <= 0:
-            raise LimiterException("Rate limit period must be greater than zero.")
+        self._validate_limit(limit, period)
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
+            backend = self._get_backend()
+
             key = "{0}/{1}".format(f.__name__, request.remote_addr)
 
-            allowed, remaining, reset = self._limiter.is_allowed(
+            allowed, remaining, reset = backend.is_allowed(
                 key,
                 limit,
                 period,
             )
 
             g.rate_limit_headers = {
-                "X-RateLimit-Remaining": str(remaining),
                 "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": str(remaining),
                 "X-RateLimit-Reset": str(reset),
             }
 
