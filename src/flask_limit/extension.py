@@ -12,6 +12,7 @@ EXTENSION_KEY = "flask_limit"
 DEFAULT_CONFIG = {
     "RATELIMIT_LIMIT": 10,
     "RATELIMIT_PERIOD": 20,
+    "RATELIMIT_KEY_PREFIX": "flask-limit",
     "RATELIMIT_REDIS_URL": "redis://localhost:6379/0",
 }
 
@@ -121,6 +122,15 @@ class RateLimiter:
 
         return response
 
+    @staticmethod
+    def _make_key(f):
+
+        endpoint = request.endpoint or f.__name__
+        client_ip = request.remote_addr or "unknown"
+        prefix = current_app.config["RATELIMIT_KEY_PREFIX"]
+
+        return f"{prefix}:{endpoint}:{client_ip}"
+
     def rate_limit(self, f=None, limit=None, period=None):
         """Limit a route to a number(limit) of requests per period.
 
@@ -161,7 +171,7 @@ class RateLimiter:
         def wrapped(*args, **kwargs):
             backend = self._get_backend()
 
-            key = "{0}/{1}".format(f.__name__, request.remote_addr)
+            key = self._make_key(f)
 
             allowed, remaining, reset = backend.is_allowed(
                 key,
@@ -188,7 +198,6 @@ class RateLimiter:
 
                 return response
 
-            # else we let the request through
             return f(*args, **kwargs)
 
         return wrapped
