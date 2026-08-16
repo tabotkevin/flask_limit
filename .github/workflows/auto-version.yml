@@ -1,0 +1,116 @@
+name: Auto Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  version:
+    if: >
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tomlkit
+        run: pip install tomlkit
+
+      - name: Determine version bump type
+        id: bump
+        run: |
+          LABELS="$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")"
+          echo "Labels: $LABELS"
+
+          if echo "$LABELS" | grep -q "major"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$LABELS" | grep -q "minor"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          elif echo "$LABELS" | grep -q "patch"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "type=none" >> $GITHUB_OUTPUT
+          fi
+          echo "Bump type determined as ${{ steps.bump.outputs.type }}"
+
+      - name: Get current version
+        if: steps.bump.outputs.type != 'none'
+        id: current
+        run: |
+          VERSION=$(grep -Po '(?<=version = ").*(?=")' pyproject.toml)
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        if: steps.bump.outputs.type != 'none'
+        id: next
+        run: |
+          OLD="${{ steps.current.outputs.current_version }}"
+          BUMP="${{ steps.bump.outputs.type }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD"
+
+          if [ "$BUMP" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW" >> $GITHUB_OUTPUT
+
+      - name: Update pyproject.toml
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          python - <<EOF
+          import tomlkit
+          with open("pyproject.toml", "r", encoding="utf8") as f:
+              data = tomlkit.parse(f.read())
+          data["project"]["version"] = "${{ steps.next.outputs.new_version }}"
+          with open("pyproject.toml", "w", encoding="utf8") as f:
+              f.write(tomlkit.dumps(data))
+          EOF
+
+      - name: Configure Git
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+      - name: Commit version bump
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${{ steps.next.outputs.new_version }}" || echo "No changes to commit"
+
+      - name: Push commit
+        if: steps.bump.outputs.type != 'none'
+        run: git push
+
+      - name: Create Git tag
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          TAG="v${{ steps.next.outputs.new_version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Output new version
+        if: steps.bump.outputs.type != 'none'
+        run: echo "Released version ${{ steps.next.outputs.new_version }}"
