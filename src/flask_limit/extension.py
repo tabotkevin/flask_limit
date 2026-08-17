@@ -15,6 +15,7 @@ DEFAULT_CONFIG = {
     "RATELIMIT_PERIOD": 20,
     "RATELIMIT_KEY_PREFIX": "flask-limit",
     "RATELIMIT_REDIS_URL": "redis://localhost:6379/0",
+    "RATELIMIT_RESPONSE": None,
 }
 
 
@@ -134,15 +135,13 @@ class RateLimiter:
 
     @staticmethod
     def _default_rate_limit_response(
-            info: RateLimitInfo,
+        info: RateLimitInfo,
     ):
         response = jsonify(
             {
                 "status": 429,
                 "error": "too many requests",
-                "message": (
-                    "You have exceeded your request rate"
-                ),
+                "message": ("You have exceeded your request rate"),
             }
         )
 
@@ -151,15 +150,13 @@ class RateLimiter:
         return response
 
     def _rate_limit_response(
-            self,
-            info: RateLimitInfo,
-            response=None,
+        self,
+        info: RateLimitInfo,
+        response=None,
     ):
 
         if response is None:
-            response = current_app.config.get(
-                "RATELIMIT_RESPONSE"
-            )
+            response = current_app.config.get("RATELIMIT_RESPONSE")
 
         if response is None:
             return self._default_rate_limit_response(info)
@@ -225,7 +222,6 @@ class RateLimiter:
                 period=period,
                 key=key,
             )
-
 
             g.rate_limit_headers = {
                 "X-RateLimit-Limit": str(limit),
