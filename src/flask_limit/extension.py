@@ -194,37 +194,37 @@ class RateLimiter:
                 response=response,
             )
 
-        configured_limit = current_app.config["RATELIMIT_LIMIT"]
-        configured_period = current_app.config["RATELIMIT_PERIOD"]
-
-        limit = configured_limit if limit is None else limit
-
-        period = configured_period if period is None else period
-
-        self._validate_limit(limit, period)
-
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
+            configured_limit = current_app.config["RATELIMIT_LIMIT"]
+            configured_period = current_app.config["RATELIMIT_PERIOD"]
+
+            actual_limit = configured_limit if limit is None else limit
+
+            actual_period = configured_period if period is None else period
+
+            self._validate_limit(actual_limit, actual_period)
+
             backend = self._get_backend()
 
             key = self._make_key(f)
 
             allowed, remaining, reset = backend.is_allowed(
                 key,
-                limit,
-                period,
+                actual_limit,
+                actual_period,
             )
 
             rate_limit_info = RateLimitInfo(
-                limit=limit,
+                limit=actual_limit,
                 remaining=remaining,
                 reset=reset,
-                period=period,
+                period=actual_period,
                 key=key,
             )
 
             g.rate_limit_headers = {
-                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Limit": str(actual_limit),
                 "X-RateLimit-Remaining": str(remaining),
                 "X-RateLimit-Reset": str(reset),
             }
