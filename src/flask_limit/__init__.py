@@ -5,6 +5,7 @@ from .limiters import (
     MemRateLimiter,
     RedisRateLimiter,
 )
+from .types import RateLimitInfo
 
 __all__ = [
     "RateLimiter",
@@ -12,4 +13,5 @@ __all__ = [
     "LimiterException",
     "MemRateLimiter",
     "RedisRateLimiter",
+    "RateLimitInfo",
 ]
