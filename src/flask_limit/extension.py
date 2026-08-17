@@ -4,6 +4,7 @@ import logging
 from flask import current_app, g, jsonify, request
 
 from .limiters import LimiterException, MemRateLimiter, RedisRateLimiter
+from .types import RateLimitInfo
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +132,44 @@ class RateLimiter:
 
         return f"{prefix}:{endpoint}:{client_ip}"
 
-    def rate_limit(self, f=None, limit=None, period=None):
+    @staticmethod
+    def _default_rate_limit_response(
+            info: RateLimitInfo,
+    ):
+        response = jsonify(
+            {
+                "status": 429,
+                "error": "too many requests",
+                "message": (
+                    "You have exceeded your request rate"
+                ),
+            }
+        )
+
+        response.status_code = 429
+
+        return response
+
+    def _rate_limit_response(
+            self,
+            info: RateLimitInfo,
+            response=None,
+    ):
+
+        if response is None:
+            response = current_app.config.get(
+                "RATELIMIT_RESPONSE"
+            )
+
+        if response is None:
+            return self._default_rate_limit_response(info)
+
+        if callable(response):
+            return response(info)
+
+        return response
+
+    def rate_limit(self, f=None, limit=None, period=None, response=None):
         """Limit a route to a number(limit) of requests per period.
 
         Args:
@@ -156,6 +194,7 @@ class RateLimiter:
                 self.rate_limit,
                 limit=limit,
                 period=period,
+                response=response,
             )
 
         configured_limit = current_app.config["RATELIMIT_LIMIT"]
@@ -179,6 +218,15 @@ class RateLimiter:
                 period,
             )
 
+            rate_limit_info = RateLimitInfo(
+                limit=limit,
+                remaining=remaining,
+                reset=reset,
+                period=period,
+                key=key,
+            )
+
+
             g.rate_limit_headers = {
                 "X-RateLimit-Limit": str(limit),
                 "X-RateLimit-Remaining": str(remaining),
@@ -186,17 +234,7 @@ class RateLimiter:
             }
 
             if not allowed:
-                response = jsonify(
-                    {
-                        "status": 429,
-                        "error": "too many requests",
-                        "message": ("You have exceeded your request rate"),
-                    }
-                )
-
-                response.status_code = 429
-
-                return response
+                return self._rate_limit_response(rate_limit_info, response)
 
             return f(*args, **kwargs)
 
