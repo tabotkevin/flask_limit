@@ -1,6 +1,8 @@
-import unittest
-from flask import Flask, g
 import json
+import unittest
+
+from flask import Flask, g
+
 from flask_limit import RateLimiter
 
 

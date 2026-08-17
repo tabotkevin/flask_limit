@@ -1,4 +1,57 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+[project]
+name = "flask_limit"
+version = "2.0.5"
+description = "An extension that provides rate limiting for Flask routes"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
 
+authors = [{ name = "Tabot Kevin", email = "tabot.kevin@gmail.com" }]
+
+dependencies = ["flask>=3.1.3"]
+
+classifiers = [
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+]
+
+keywords = ["web", "framework", "flask", "redis", "rate limiting", "extentions"]
+
+
+[project.optional-dependencies]
+redis = ["redis>=8.1.0"]
+full = ["flask_limit[redis]"]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+# Hatch configuration
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flask_limit"]
+
+# Rye configuration
+[tool.rye]
+managed = true
+
+dev-dependencies = [
+  "pytest>=8.1.1",
+  "pytest-mock>=3.14.0",
+  "pytest-cov>=5.0.0",
+  "pytest-asyncio>=1.3.0",
+]
+
+# Pytest defaults
+[tool.pytest.ini_options]
+addopts = "-ra -q --cov=flask_limit"
+testpaths = ["tests"]

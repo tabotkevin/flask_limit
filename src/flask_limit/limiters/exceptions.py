@@ -1,2 +1,0 @@
-class LimiterException(Exception):
-    pass
