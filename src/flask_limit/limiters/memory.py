@@ -1,32 +1,72 @@
+from threading import RLock
 from time import time
 
 from .base import Limiter
 
 
 class MemRateLimiter(Limiter):
-    """Rate limiter that uses a Python dictionary as storage."""
+    """Rate limiter backed by process-local memory.
+
+    This backend is thread-safe within a single Python process.
+
+    It is not shared between multiple processes or application instances.
+    """
 
     def __init__(self):
-        self.counters = {}
+        self.counters: dict[str, dict[str, int]] = {}
+        self._lock = RLock()
 
-    def is_allowed(self, key, limit, period):
+    def is_allowed(
+        self,
+        key: str,
+        limit: int,
+        period: int,
+    ) -> tuple[bool, int, int]:
         now = int(time())
+
         begin_period = now // period * period
         end_period = begin_period + period
 
-        self.cleanup(now)
-        if key in self.counters:
-            self.counters[key]["hits"] += 1
-        else:
-            self.counters[key] = {"hits": 1, "reset": end_period}
-        allow = True
-        remaining = limit - self.counters[key]["hits"]
-        if remaining < 0:
-            remaining = 0
-            allow = False
-        return allow, remaining, self.counters[key]["reset"]
+        with self._lock:
+            counter = self.counters.get(key)
 
-    def cleanup(self, now):
-        for key, value in list(self.counters.items()):
-            if value["reset"] < now:
-                del self.counters[key]
+            # Start a new window if this is the first request or
+            # the previous window has expired.
+            if counter is None or counter["reset"] <= now:
+                counter = {
+                    "hits": 1,
+                    "reset": end_period,
+                }
+
+                self.counters[key] = counter
+            else:
+                counter["hits"] += 1
+
+            hits = counter["hits"]
+
+            allowed = hits <= limit
+            remaining = max(0, limit - hits)
+
+            return allowed, remaining, counter["reset"]
+
+    def cleanup(self, key: str | None = None):
+
+        now = int(time())
+
+        with self._lock:
+            if key is not None:
+                counter = self.counters.get(key)
+
+                if counter and counter["reset"] <= now:
+                    del self.counters[key]
+
+                return
+
+            expired_keys = [
+                counter_key
+                for counter_key, counter in self.counters.items()
+                if counter["reset"] <= now
+            ]
+
+            for counter_key in expired_keys:
+                del self.counters[counter_key]

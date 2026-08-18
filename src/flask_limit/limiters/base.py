@@ -28,6 +28,6 @@ class Limiter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def cleanup(self, now):
+    def cleanup(self, key: str | None = None):
         """Remove expired counters."""
         raise NotImplementedError
