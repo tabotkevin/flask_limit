@@ -4,7 +4,7 @@ from time import time
 from .base import Limiter
 
 
-class MemRateLimiter(Limiter):
+class MemRateLimiter(Limiter, name="memory"):
     """Rate limiter backed by process-local memory.
 
     This backend is thread-safe within a single Python process.
@@ -15,6 +15,10 @@ class MemRateLimiter(Limiter):
     def __init__(self):
         self.counters: dict[str, dict[str, int]] = {}
         self._lock = RLock()
+
+    @classmethod
+    def from_app(cls, app):
+        return cls()
 
     def is_allowed(
         self,

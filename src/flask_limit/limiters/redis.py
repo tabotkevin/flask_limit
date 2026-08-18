@@ -1,9 +1,9 @@
 from time import time
 
-from .base import Limiter
+from .base import Limiter, LimiterException
 
 
-class RedisRateLimiter(Limiter):
+class RedisRateLimiter(Limiter, name="redis"):
 
     _SCRIPT = """
     local key = KEYS[1]
@@ -69,6 +69,21 @@ class RedisRateLimiter(Limiter):
     def __init__(self, client):
         self.client = client
         self._script = self.client.register_script(self._SCRIPT)
+
+    @classmethod
+    def from_app(cls, app):
+        try:
+            import redis
+        except ImportError as exc:
+            raise LimiterException(
+                "Redis support requires the 'redis' package. "
+                "Install it with: pip install flask_limit[redis]"
+            ) from exc
+
+        redis_url = app.config["RATELIMIT_REDIS_URL"]
+        client = redis.Redis.from_url(redis_url, decode_responses=False)
+
+        return cls(client)
 
     def is_allowed(
         self,
