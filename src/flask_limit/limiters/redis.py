@@ -4,30 +4,116 @@ from .base import Limiter
 
 
 class RedisRateLimiter(Limiter):
-    """Rate limiter that uses a Redis as storage."""
+
+    _SCRIPT = """
+    local key = KEYS[1]
+
+    local now = tonumber(ARGV[1])
+    local limit = tonumber(ARGV[2])
+    local end_period = tonumber(ARGV[3])
+    local ttl = tonumber(ARGV[4])
+
+    local hits = redis.call("HGET", key, "hits")
+    local reset = redis.call("HGET", key, "reset")
+
+    -- Start a new rate-limit window.
+    if not hits or not reset or tonumber(reset) <= now then
+
+        hits = 1
+        reset = end_period
+
+        redis.call(
+            "HSET",
+            key,
+            "hits",
+            hits,
+            "reset",
+            reset
+        )
+
+    else
+
+        hits = tonumber(hits) + 1
+
+        redis.call(
+            "HSET",
+            key,
+            "hits",
+            hits
+        )
+
+    end
+
+    -- Make sure Redis removes the key after the window.
+    redis.call("EXPIRE", key, ttl)
+
+    local remaining = limit - hits
+
+    if remaining < 0 then
+        remaining = 0
+    end
+
+    local allowed = 0
+
+    if hits <= limit then
+        allowed = 1
+    end
+
+    return {
+        allowed,
+        remaining,
+        reset
+    }
+    """
 
     def __init__(self, client):
         self.client = client
+        self._script = self.client.register_script(self._SCRIPT)
 
-    def is_allowed(self, key, limit, period):
+    def is_allowed(
+        self,
+        key: str,
+        limit: int,
+        period: int,
+    ) -> tuple[bool, int, int]:
         now = int(time())
+
         begin_period = now // period * period
         end_period = begin_period + period
 
-        self.cleanup(now, key)
-        if self.client.hlen(key):
-            hits = int(self.client.hget(key, "hits"))
-            self.client.hset(key, "hits", hits + 1)
-        else:
-            self.client.hset(key, mapping={"hits": 1, "reset": end_period})
-        allow = True
-        remaining = limit - int(self.client.hget(key, "hits"))
-        if remaining < 0:
-            remaining = 0
-            allow = False
-        return allow, remaining, int(self.client.hget(key, "reset"))
+        result = self._script(
+            keys=[key],
+            args=[
+                now,
+                limit,
+                end_period,
+                period,
+            ],
+        )
 
-    def cleanup(self, now, key):
+        allowed, remaining, reset = result
+
+        return (
+            bool(int(allowed)),
+            int(remaining),
+            int(reset),
+        )
+
+    def cleanup(self, key: str | None = None):
+        """Remove an expired Redis counter.
+
+        Redis EXPIRE handles normal expiration automatically.
+        """
+
+        if key is None:
+            return
+
         reset = self.client.hget(key, "reset")
-        if reset and int(reset) < now:
+
+        if reset is None:
+            return
+
+        now = int(time())
+
+        if int(reset) <= now:
             self.client.delete(key)
