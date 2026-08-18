@@ -3,20 +3,11 @@ import logging
 
 from flask import current_app, g, jsonify, request
 
-from .limiters import LimiterException, MemRateLimiter, RedisRateLimiter
+from .config import DEFAULT_CONFIG, EXTENSION_KEY
+from .limiters import BACKEND_REGISTRY, LimiterException
 from .types import RateLimitInfo
 
 logger = logging.getLogger(__name__)
-
-EXTENSION_KEY = "flask_limit"
-
-DEFAULT_CONFIG = {
-    "RATELIMIT_LIMIT": 10,
-    "RATELIMIT_PERIOD": 20,
-    "RATELIMIT_KEY_PREFIX": "flask-limit",
-    "RATELIMIT_REDIS_URL": "redis://localhost:6379/0",
-    "RATELIMIT_RESPONSE": None,
-}
 
 
 class RateLimiter:
@@ -74,29 +65,16 @@ class RateLimiter:
         return extension["backend"]
 
     def _create_backend(self, app):
-        if self.limiter == "memory":
-            return MemRateLimiter()
 
-        return self._create_redis_backend(app)
+        backend_cls = BACKEND_REGISTRY.get(self.limiter)
 
-    @staticmethod
-    def _create_redis_backend(app):
-        try:
-            import redis
-        except ImportError as exc:
+        if backend_cls is None:
+            available = ", ".join(BACKEND_REGISTRY.keys())
             raise LimiterException(
-                "Redis support requires the 'redis' package. "
-                "Install it with: pip install redis"
-            ) from exc
+                f"Unknown backend '{self.limiter}'. Available: {available}"
+            )
 
-        redis_url = app.config["RATELIMIT_REDIS_URL"]
-
-        client = redis.Redis.from_url(
-            redis_url,
-            decode_responses=False,
-        )
-
-        return RedisRateLimiter(client)
+        return backend_cls.from_app(app)
 
     @staticmethod
     def _validate_limit(limit, period):
@@ -170,18 +148,43 @@ class RateLimiter:
         """Limit a route to a number(limit) of requests per period.
 
         Args:
-            limit: Maximum number of requests allowed.
-            period: Time window in seconds.
+            limit:
+                Maximum number of requests allowed.
 
-        Usage:
+            period:
+                Rate-limit window in seconds.
+
+            response:
+                Custom response returned when the rate limit is
+                exceeded.
+
+                The value can be:
+
+                - A callable accepting a RateLimitInfo object.
+                - A Flask response.
+                - A Flask response tuple.
+
+                If ``None`` is supplied, the application-level
+                ``RATELIMIT_RESPONSE`` configuration is used.
+
+                If neither is configured, Flask-Limit's default
+                429 response is returned.
+
+        Examples:
 
             @limiter.rate_limit
             def endpoint():
                 ...
 
-        Or:
-
             @limiter.rate_limit(limit=100, period=60)
+            def endpoint():
+                ...
+
+            @limiter.rate_limit(
+                limit=100,
+                period=60,
+                response=custom_response,
+            )
             def endpoint():
                 ...
         """
