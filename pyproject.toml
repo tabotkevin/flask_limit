@@ -1,6 +1,6 @@
 [project]
 name = "flask_limit"
-version = "2.0.5"
+version = "3.0.0"
 description = "A lightweight, high-performance rate-limiting extension for Flask applications."
 readme = "README.md"
 requires-python = ">=3.11"
