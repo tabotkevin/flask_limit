@@ -17,8 +17,8 @@
 
 # -- Project information -----------------------------------------------------
 
-project = "Flask_Limit"
-copyright = "2023, Tabot Kevin"
+project = "Flask-Limit"
+copyright = "2026, Tabot Kevin"
 author = "Tabot Kevin"
 
 
@@ -55,7 +55,9 @@ html_theme = "alabaster"
 html_static_path = ["_static"]
 
 html_theme_options = {
-    "description": ("An extension that provides rate limiting for Flask routes."),
+    "description": (
+        "A lightweight, high-performance rate-limiting extension for Flask applications"
+    ),
     "fixed_sidebar": True,
     "github_user": "tabotkevin",
     "github_repo": "flask_limit",
