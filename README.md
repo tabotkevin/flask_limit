@@ -36,10 +36,10 @@ To use third-party storage backends, install the corresponding extra:
 
 ```bash
 # Redis Backend
-pip install flask-limit[redis]
+pip install "flask-limit[redis]"
 
 # All Backends
-pip install flask-limit[all]
+pip install "flask-limit[all]"
 
 ```
 

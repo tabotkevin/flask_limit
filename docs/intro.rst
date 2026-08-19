@@ -28,13 +28,13 @@ Built-in storage backends like Redis require optional third-party packages. You 
 
   .. code-block:: bash
 
-      pip install flask-limit[redis]
+      pip install "flask-limit[redis]"
 
 * **All optional backends:**
 
   .. code-block:: bash
 
-      pip install flask-limit[all]
+      pip install "flask-limit[all]"
 
 Configuration
 =============
